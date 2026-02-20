@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}POS - Pharmacy Management System{% endblock %}
+
+{% block content %}
+<div class="row h-100">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Product Search</h5>
+            </div>
+            <div class="card-body">
+                <input type="text" id="productSearch" class="form-control form-control-lg" placeholder="Search by product name, barcode, or SKU...">
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Shopping Cart</h5>
+            </div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                <div id="cartItems"></div>
+                <div id="emptyCart" class="text-center text-muted py-4">
+                    <i class="fas fa-shopping-cart" style="font-size: 3rem; opacity: 0.3;"></i><br>
+                    Cart is empty
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Billing</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="customerSelect" class="form-label">Customer</label>
+                    <select id="customerSelect" class="form-select">
+                        <option value="">Walk-in Customer</option>
+                        {% for customer in customers %}
+                        <option value="{{ customer.id }}">{{ customer.customer_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="customerName" class="form-label">Name</label>
+                    <input type="text" id="customerName" class="form-control" placeholder="Customer name">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="customerPhone" class="form-label">Phone</label>
+                    <input type="tel" id="customerPhone" class="form-control" placeholder="Phone number">
+                </div>
+                
+                <hr>
+                
+                <div class="mb-2 d-flex justify-content-between">
+                    <span>Subtotal:</span>
+                    <span id="subtotal">₹0.00</span>
+                </div>
+                <div class="mb-2 d-flex justify-content-between">
+                    <span>Tax:</span>
+                    <span id="taxAmount">₹0.00</span>
+                </div>
+                <div class="mb-3 d-flex justify-content-between">
+                    <span>
+                        Discount:
+                        <input type="number" id="discountAmount" class="form-control form-control-sm" style="width: 80px; display: inline-block;" placeholder="0" step="0.01">
+                    </span>
+                    <span id="discountDisplay">₹0.00</span>
+                </div>
+                
+                <hr>
+                
+                <div class="mb-3 d-flex justify-content-between" style="font-size: 1.3rem; font-weight: bold;">
+                    <span>Total:</span>
+                    <span id="totalAmount">₹0.00</span>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="paymentMethod" class="form-label">Payment Method</label>
+                    <select id="paymentMethod" class="form-select">
+                        <option value="cash">Cash</option>
+                        <option value="card">Card</option>
+                        <option value="upi">UPI</option>
+                        <option value="bank">Bank Transfer</option>
+                        <option value="credit">Credit</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">
+                        <input type="checkbox" id="includeTax"> Include Tax in Amount
+                    </label>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <button id="checkoutBtn" class="btn btn-success btn-lg">Complete Order</button>
+                    <button id="clearCartBtn" class="btn btn-secondary">Clear Cart</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.cart-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.cart-item-name {
+    flex: 1;
+}
+
+.cart-item-qty {
+    width: 60px;
+}
+
+.cart-item-price {
+    text-align: right;
+    min-width: 80px;
+}
+</style>
+
+<script>
+// POS functionality
+let cart = [];
+const includeTaxCheckbox = document.getElementById('includeTax');
+const subtotalSpan = document.getElementById('subtotal');
+const taxSpan = document.getElementById('taxAmount');
+const totalSpan = document.getElementById('totalAmount');
+const discountInput = document.getElementById('discountAmount');
+const discountDisplay = document.getElementById('discountDisplay');
+
+includeTaxCheckbox.checked = true;
+
+discountInput.addEventListener('change', updateTotal);
+
+document.getElementById('clearCartBtn').addEventListener('click', function() {
+    cart = [];
+    renderCart();
+    updateTotal();
+});
+
+document.getElementById('checkoutBtn').addEventListener('click', checkout);
+
+async function searchProducts(query) {
+    if (query.length < 2) return;
+    const response = await fetch(`{{ url_for('sales.search_products') }}?q=${encodeURIComponent(query)}`);
+    const products = await response.json();
+    
+    if (products.length > 0) {
+        const product = products[0];
+        addToCart(product);
+    }
+}
+
+function addToCart(product) {
+    const existing = cart.find(item => item.id === product.id);
+    if (existing) {
+        existing.quantity++;
+    } else {
+        cart.push({...product, quantity: 1});
+    }
+    renderCart();
+    updateTotal();
+}
+
+function renderCart() {
+    const cartItemsDiv = document.getElementById('cartItems');
+    const emptyCart = document.getElementById('emptyCart');
+    
+    if (cart.length === 0) {
+        cartItemsDiv.innerHTML = '';
+        emptyCart.style.display = 'block';
+        return;
+    }
+    
+    emptyCart.style.display = 'none';
+    cartItemsDiv.innerHTML = cart.map((item, idx) => `
+        <div class="cart-item">
+            <div class="cart-item-name">
+                <strong>${item.name}</strong><br>
+                <small class="text-muted">₹${item.price.toFixed(2)} each</small>
+            </div>
+            <div class="cart-item-qty">
+                <input type="number" value="${item.quantity}" min="1" onchange="updateQty(${idx}, this.value)" class="form-control form-control-sm">
+            </div>
+            <div class="cart-item-price">₹${(item.price * item.quantity).toFixed(2)}</div>
+            <button onclick="removeFromCart(${idx})" class="btn btn-sm btn-danger ms-2">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+function updateQty(idx, qty) {
+    cart[idx].quantity = parseInt(qty);
+    renderCart();
+    updateTotal();
+}
+
+function removeFromCart(idx) {
+    cart.splice(idx, 1);
+    renderCart();
+    updateTotal();
+}
+
+function updateTotal() {
+    let subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    let taxAmount = 0;
+    
+    if (document.getElementById('includeTax').checked) {
+        taxAmount = cart.reduce((sum, item) => {
+            const itemTax = (item.price * item.quantity) * (item.tax_percentage / 100);
+            return sum + itemTax;
+        }, 0);
+    }
+    
+    const discount = parseFloat(discountInput.value) || 0;
+    const total = subtotal + taxAmount - discount;
+    
+    subtotalSpan.textContent = '₹' + subtotal.toFixed(2);
+    taxSpan.textContent = '₹' + taxAmount.toFixed(2);
+    discountDisplay.textContent = '₹' + discount.toFixed(2);
+    totalSpan.textContent = '₹' + (total < 0 ? 0 : total).toFixed(2);
+}
+
+async function checkout() {
+    if (cart.length === 0) {
+        alert('Cart is empty');
+        return;
+    }
+    
+    const data = {
+        items: cart,
+        customer_id: document.getElementById('customerSelect').value || null,
+        customer_name: document.getElementById('customerName').value || 'Walk-in',
+        customer_phone: document.getElementById('customerPhone').value || '',
+        payment_method: document.getElementById('paymentMethod').value,
+        discount: parseFloat(discountInput.value) || 0,
+        include_tax: document.getElementById('includeTax').checked
+    };
+    
+    try {
+        const response = await fetch('{{ url_for("sales.checkout") }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(`Order completed! Invoice: ${result.invoice_number}`);
+            window.location.href = `{{ url_for('sales.invoice_detail', sale_id=0) }}`.replace('0', result.sale_id);
+        } else {
+            alert('Error: ' + result.message);
+        }
+    } catch (error) {
+        alert('Checkout failed: ' + error);
+    }
+}
+
+document.getElementById('productSearch').addEventListener('keyup', function(e) {
+    if (e.key === 'Enter') {
+        searchProducts(this.value);
+        this.value = '';
+    }
+});
+</script>
+{% endblock %}
