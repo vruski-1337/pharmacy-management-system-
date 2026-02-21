@@ -4,11 +4,13 @@ from app.models import db, Sale, SaleItem, Product, Customer, SalesReturn, Stock
 from datetime import datetime
 from sqlalchemy import and_, func
 import io
-from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+import os
+from reportlab.lib.pagesizes import A4, letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, Image, KeepTogether
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
+from reportlab.lib.units import inch, mm
 from reportlab.lib import colors
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
 
 sales_bp = Blueprint('sales', __name__, url_prefix='/sales')
 
@@ -253,80 +255,244 @@ def print_invoice(sale_id):
 @sales_bp.route('/invoices/<int:sale_id>/pdf')
 @login_required
 def download_invoice_pdf(sale_id):
-    """Download invoice as PDF"""
+    """Download invoice as PDF with professional formatting and logo"""
     sale = Sale.query.get(sale_id)
     if not sale or sale.company_id != current_user.company_id:
         return jsonify({'success': False, 'message': 'Invoice not found'}), 404
     
     try:
-        # Create PDF
+        # Create PDF buffer
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=(4.25*inch, 8.5*inch), 
-                              topMargin=0.5*inch, bottomMargin=0.5*inch,
-                              leftMargin=0.3*inch, rightMargin=0.3*inch)
+        doc = SimpleDocTemplate(
+            buffer, 
+            pagesize=letter,
+            topMargin=0.5*inch, 
+            bottomMargin=0.5*inch,
+            leftMargin=0.75*inch, 
+            rightMargin=0.75*inch
+        )
         
         elements = []
         styles = getSampleStyleSheet()
         
-        # Company and invoice details
+        # Define custom styles
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor=colors.HexColor('#1a3a52'),
+            alignment=TA_CENTER,
+            spaceAfter=6,
+            fontName='Helvetica-Bold'
+        )
+        
+        subtitle_style = ParagraphStyle(
+            'Subtitle',
+            parent=styles['Normal'],
+            fontSize=10,
+            textColor=colors.HexColor('#666666'),
+            alignment=TA_CENTER,
+            spaceAfter=12
+        )
+        
+        section_header_style = ParagraphStyle(
+            'SectionHeader',
+            parent=styles['Heading2'],
+            fontSize=11,
+            textColor=colors.HexColor('#1a3a52'),
+            spaceAfter=6,
+            fontName='Helvetica-Bold',
+            borderColor=colors.HexColor('#1a3a52'),
+            borderWidth=1,
+            borderPadding=4
+        )
+        
+        # Header with Logo and Company Info
+        header_data = []
         company = sale.company
-        title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=10, alignment=1)
-        elements.append(Paragraph(company.company_name, title_style))
-        elements.append(Spacer(1, 0.1*inch))
         
-        # Invoice details
-        invoice_info = f"Invoice: {sale.invoice_number}<br/>Date: {sale.invoice_date.strftime('%Y-%m-%d %H:%M')}"
-        elements.append(Paragraph(invoice_info, styles['Normal']))
-        elements.append(Spacer(1, 0.1*inch))
+        # Add logo if exists
+        logo_path = company.logo_path
+        if logo_path and os.path.exists(logo_path):
+            try:
+                img = Image(logo_path, width=1.2*inch, height=1.2*inch)
+                header_data.append([img, Paragraph(f"<b>{company.company_name}</b><br/>" + 
+                                                   (f"{company.company_address}<br/>" if company.company_address else "") +
+                                                   (f"Phone: {company.company_phone}<br/>" if company.company_phone else "") +
+                                                   (f"Email: {company.company_email}" if company.company_email else ""),
+                                                   subtitle_style)])
+            except:
+                header_data.append([Paragraph(f"<b>{company.company_name}</b><br/>" + 
+                                             (f"{company.company_address}<br/>" if company.company_address else "") +
+                                             (f"Phone: {company.company_phone}<br/>" if company.company_phone else "") +
+                                             (f"Email: {company.company_email}" if company.company_email else ""),
+                                             subtitle_style)])
+        else:
+            header_data.append([Paragraph(f"<b>{company.company_name}</b><br/>" + 
+                                         (f"{company.company_address}<br/>" if company.company_address else "") +
+                                         (f"Phone: {company.company_phone}<br/>" if company.company_phone else "") +
+                                         (f"Email: {company.company_email}" if company.company_email else ""),
+                                         subtitle_style)])
         
-        # Customer details
-        customer_info = f"Customer: {sale.customer_name or 'Walk-in'}<br/>Phone: {sale.customer_phone or 'N/A'}"
-        elements.append(Paragraph(customer_info, styles['Normal']))
-        elements.append(Spacer(1, 0.1*inch))
+        header_table = Table(header_data, colWidths=[1.5*inch, 5.5*inch])
+        header_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+        ]))
+        elements.append(header_table)
+        elements.append(Spacer(1, 0.15*inch))
         
-        # Items table
-        table_data = [['Item', 'Qty', 'Price', 'Tax', 'Total']]
+        # Invoice Title
+        elements.append(Paragraph(f"<b>INVOICE</b>", title_style))
+        
+        # Invoice and Date Info
+        invoice_info_data = [
+            [Paragraph(f"<b>Invoice #:</b> {sale.invoice_number}", styles['Normal']),
+             Paragraph(f"<b>Date:</b> {sale.invoice_date.strftime('%d-%m-%Y')}", styles['Normal']),
+             Paragraph(f"<b>Time:</b> {sale.invoice_date.strftime('%H:%M:%S')}", styles['Normal'])],
+        ]
+        
+        invoice_info_table = Table(invoice_info_data, colWidths=[2.5*inch, 2*inch, 2*inch])
+        invoice_info_table.setStyle(TableStyle([
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#333333')),
+        ]))
+        elements.append(invoice_info_table)
+        elements.append(Spacer(1, 0.15*inch))
+        
+        # Customer and Company Details
+        bill_to = f"<b>Bill To:</b><br/>{sale.customer_name or 'Walk-in Customer'}"
+        if sale.customer_phone:
+            bill_to += f"<br/>Phone: {sale.customer_phone}"
+        if sale.customer and sale.customer.customer_address:
+            bill_to += f"<br/>{sale.customer.customer_address}"
+        
+        bill_ship_data = [
+            [Paragraph(bill_to, styles['Normal']),
+             Paragraph(f"<b>Sold By:</b><br/>{company.company_name}", styles['Normal'])]
+        ]
+        
+        bill_ship_table = Table(bill_ship_data, colWidths=[3.5*inch, 3.5*inch])
+        bill_ship_table.setStyle(TableStyle([
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        elements.append(bill_ship_table)
+        elements.append(Spacer(1, 0.2*inch))
+        
+        # Items Table
+        item_data = [['Item', 'Qty', 'Unit Price', 'Discount', 'Tax', 'Amount']]
+        
         for item in sale.items:
-            table_data.append([
-                item.product.product_name[:20],
-                str(item.quantity),
-                f"₹{item.unit_price:.2f}",
-                f"₹{item.tax_amount:.2f}",
-                f"₹{item.total_amount:.2f}"
+            item_data.append([
+                Paragraph(f"<b>{item.product.product_name}</b><br/><font size=7>SKU: {item.product.sku}</font>", styles['Normal']),
+                Paragraph(str(item.quantity), ParagraphStyle('Normal', parent=styles['Normal'], alignment=TA_CENTER)),
+                Paragraph(f"₹{item.unit_price:.2f}", ParagraphStyle('Normal', parent=styles['Normal'], alignment=TA_RIGHT)),
+                Paragraph(f"₹{item.discount_amount:.2f}", ParagraphStyle('Normal', parent=styles['Normal'], alignment=TA_RIGHT)),
+                Paragraph(f"₹{item.tax_amount:.2f}", ParagraphStyle('Normal', parent=styles['Normal'], alignment=TA_RIGHT)),
+                Paragraph(f"<b>₹{item.total_amount:.2f}</b>", ParagraphStyle('Normal', parent=styles['Normal'], alignment=TA_RIGHT))
             ])
         
-        table = Table(table_data, colWidths=[1.5*inch, 0.5*inch, 0.8*inch, 0.6*inch, 0.8*inch])
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        items_table = Table(item_data, colWidths=[2.8*inch, 0.6*inch, 1*inch, 0.8*inch, 0.8*inch, 1*inch])
+        items_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a3a52')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('TOPPADDING', (0, 0), (-1, 0), 8),
             ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('FONTSIZE', (0, 1), (-1, -1), 7),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#333333')),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#cccccc')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9f9f9')]),
+            ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 1), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
         ]))
         
-        elements.append(table)
-        elements.append(Spacer(1, 0.1*inch))
+        elements.append(items_table)
+        elements.append(Spacer(1, 0.15*inch))
         
-        # Summary
-        summary = f"""
-        <b>Subtotal:</b> ₹{sale.subtotal:.2f}<br/>
-        <b>Tax:</b> ₹{sale.tax_amount:.2f}<br/>
-        <b>Discount:</b> ₹{sale.discount_amount:.2f}<br/>
-        <b>Total:</b> ₹{sale.total_amount:.2f}<br/>
-        <b>Payment:</b> {sale.payment_method.upper()}
-        """
-        elements.append(Paragraph(summary, styles['Normal']))
+        # Summary Section
+        summary_data = [
+            ['', 'Subtotal', f"₹{sale.subtotal:.2f}"],
+            ['', 'Tax Amount', f"₹{sale.tax_amount:.2f}"],
+            ['', 'Discount', f"-₹{sale.discount_amount:.2f}"],
+            ['', '', ''],
+            ['', 'TOTAL AMOUNT', f"₹{sale.total_amount:.2f}"],
+        ]
         
+        summary_table = Table(summary_data, colWidths=[3.5*inch, 2*inch, 1.5*inch])
+        summary_table.setStyle(TableStyle([
+            ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+            ('FONTNAME', (1, 0), (-1, 3), 'Helvetica-Bold'),
+            ('FONTSIZE', (1, 0), (-1, 3), 9),
+            ('FONTSIZE', (1, 4), (-1, 4), 11),
+            ('FONTNAME', (1, 4), (-1, 4), 'Helvetica-Bold'),
+            ('BACKGROUND', (1, 4), (-1, 4), colors.HexColor('#1a3a52')),
+            ('TEXTCOLOR', (1, 4), (-1, 4), colors.whitesmoke),
+            ('TOPPADDING', (1, 4), (-1, 4), 8),
+            ('BOTTOMPADDING', (1, 4), (-1, 4), 8),
+            ('LINEABOVE', (1, 3), (-1, 3), 0.5, colors.HexColor('#cccccc')),
+            ('LINEABOVE', (1, 4), (-1, 4), 1, colors.HexColor('#1a3a52')),
+            ('RIGHTPADDING', (2, 0), (2, -1), 10),
+        ]))
+        
+        elements.append(summary_table)
+        elements.append(Spacer(1, 0.2*inch))
+        
+        # Payment Details
+        payment_data = [
+            ['Payment Method:', sale.payment_method.upper()],
+            ['Payment Status:', sale.payment_status.upper()],
+        ]
+        
+        if sale.notes:
+            payment_data.append(['Notes:', sale.notes])
+        
+        payment_table = Table(payment_data, colWidths=[1.5*inch, 5.5*inch])
+        payment_table.setStyle(TableStyle([
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        elements.append(payment_table)
+        
+        elements.append(Spacer(1, 0.3*inch))
+        
+        # Footer
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=8,
+            textColor=colors.HexColor('#999999'),
+            alignment=TA_CENTER
+        )
+        
+        elements.append(Paragraph(
+            "Thank you for your business!<br/>This is a computer-generated invoice. No signature required.",
+            footer_style
+        ))
+        
+        # Build PDF
         doc.build(elements)
         buffer.seek(0)
         
-        return send_file(buffer, mimetype='application/pdf', 
-                        as_attachment=True, 
-                        download_name=f"invoice_{sale.invoice_number}.pdf")
+        return send_file(
+            buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f"invoice_{sale.invoice_number}.pdf"
+        )
     
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
