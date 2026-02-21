@@ -31,6 +31,9 @@ class DevelopmentConfig(Config):
     """Development configuration"""
     DEBUG = True
     TESTING = False
+    # In development we run on HTTP (not HTTPS), so cookies must not be marked secure
+    REMEMBER_COOKIE_SECURE = False
+    SESSION_COOKIE_SECURE = False
 
 
 class TestingConfig(Config):
