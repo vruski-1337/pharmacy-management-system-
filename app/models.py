@@ -97,6 +97,13 @@ class Product(db.Model):
     sale_items = db.relationship('SaleItem', back_populates='product', cascade='all, delete-orphan')
     purchase_items = db.relationship('PurchaseItem', back_populates='product', cascade='all, delete-orphan')
 
+    # New master references
+    category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
+    unit_id = db.Column(db.Integer, db.ForeignKey('unit.id'))
+
+    category_rel = db.relationship('Category', back_populates='products')
+    unit_rel = db.relationship('Unit', back_populates='products')
+
 
 class StockMovement(db.Model):
     """Stock movement history"""
@@ -112,6 +119,36 @@ class StockMovement(db.Model):
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
     
     product = db.relationship('Product', back_populates='stock_movements')
+
+
+class Category(db.Model):
+    """Master category for products"""
+    __tablename__ = 'category'
+
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(255))
+    is_active = db.Column(db.Boolean, default=True)
+    created_date = db.Column(db.DateTime, default=datetime.utcnow)
+
+    company = db.relationship('Company')
+    products = db.relationship('Product', back_populates='category_rel')
+
+
+class Unit(db.Model):
+    """Unit of measure master table (mg, ml, tablet, capsule, etc.)"""
+    __tablename__ = 'unit'
+
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    name = db.Column(db.String(50), nullable=False)
+    abbreviation = db.Column(db.String(20))
+    is_active = db.Column(db.Boolean, default=True)
+    created_date = db.Column(db.DateTime, default=datetime.utcnow)
+
+    company = db.relationship('Company')
+    products = db.relationship('Product', back_populates='unit_rel')
 
 
 class Customer(db.Model):

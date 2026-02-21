@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from app.models import db, Product, StockMovement
+from app.models import db, Product, StockMovement, Category, Unit
 from datetime import datetime
 import os
 
@@ -23,6 +23,7 @@ def products_list():
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '')
     category = request.args.get('category', '')
+    category_id = request.args.get('category_id', type=int)
     
     query = Product.query.filter_by(company_id=company_id, is_active=True)
     
@@ -36,16 +37,22 @@ def products_list():
             )
         )
     
-    if category:
+    if category_id:
+        query = query.filter_by(category_id=category_id)
+    elif category:
         query = query.filter_by(category=category)
     
     products = query.order_by(Product.product_name).paginate(page=page, per_page=20)
     
-    # Get all categories for filter
-    categories = db.session.query(Product.category).filter_by(
-        company_id=company_id, is_active=True
-    ).distinct().all()
-    categories = [c[0] for c in categories if c[0]]
+    # Get categories from master table if available, fallback to product.category
+    cat_objs = Category.query.filter_by(company_id=company_id, is_active=True).order_by(Category.name).all()
+    if cat_objs:
+        categories = [c.name for c in cat_objs]
+    else:
+        categories = db.session.query(Product.category).filter_by(
+            company_id=company_id, is_active=True
+        ).distinct().all()
+        categories = [c[0] for c in categories if c[0]]
     
     return render_template('inventory/products_list.html', 
                          products=products, 
@@ -113,6 +120,19 @@ def add_product():
                 description=request.form.get('description'),
                 image_path=image_path
             )
+            # assign master ids if provided
+            try:
+                cid = request.form.get('category_id')
+                if cid:
+                    product.category_id = int(cid)
+                    cat = Category.query.get(int(cid))
+                    if cat:
+                        product.category = cat.name
+                uid = request.form.get('unit_id')
+                if uid:
+                    product.unit_id = int(uid)
+            except Exception:
+                pass
             
             db.session.add(product)
             db.session.commit()
@@ -125,7 +145,10 @@ def add_product():
             flash(f'Failed to add product: {str(e)}', 'danger')
             return redirect(url_for('inventory.add_product'))
     
-    return render_template('inventory/add_product.html')
+    # provide categories and units for the form
+    categories = Category.query.filter_by(company_id=current_user.company_id, is_active=True).order_by(Category.name).all()
+    units = Unit.query.filter_by(company_id=current_user.company_id, is_active=True).order_by(Unit.name).all()
+    return render_template('inventory/add_product.html', categories=categories, units=units)
 
 
 @inventory_bp.route('/products/<int:product_id>')
@@ -177,6 +200,19 @@ def edit_product(product_id):
             product.reorder_level = int(request.form.get('reorder_level', product.reorder_level))
             product.prescription_required = request.form.get('prescription_required') == 'on'
             product.description = request.form.get('description', product.description)
+            # update category/unit if provided
+            try:
+                cid = request.form.get('category_id')
+                if cid:
+                    product.category_id = int(cid)
+                    cat = Category.query.get(int(cid))
+                    if cat:
+                        product.category = cat.name
+                uid = request.form.get('unit_id')
+                if uid:
+                    product.unit_id = int(uid)
+            except Exception:
+                pass
             
             if request.form.get('manufacturing_date'):
                 product.manufacturing_date = datetime.strptime(request.form.get('manufacturing_date'), '%Y-%m-%d')
@@ -210,7 +246,9 @@ def edit_product(product_id):
             flash(f'Failed to update product: {str(e)}', 'danger')
             return redirect(url_for('inventory.edit_product', product_id=product_id))
     
-    return render_template('inventory/edit_product.html', product=product)
+    categories = Category.query.filter_by(company_id=current_user.company_id, is_active=True).order_by(Category.name).all()
+    units = Unit.query.filter_by(company_id=current_user.company_id, is_active=True).order_by(Unit.name).all()
+    return render_template('inventory/edit_product.html', product=product, categories=categories, units=units)
 
 
 @inventory_bp.route('/products/<int:product_id>/adjust-stock', methods=['POST'])
