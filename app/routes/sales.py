@@ -89,7 +89,14 @@ def checkout():
         total_tax = 0
         
         for item in items:
-            product = Product.query.get(item.get('product_id'))
+            # Accept product identifier from front-end as either 'product_id' or 'id'
+            pid = item.get('product_id') or item.get('id')
+            try:
+                pid = int(pid)
+            except Exception:
+                pid = None
+
+            product = Product.query.get(pid) if pid else None
             if not product or product.company_id != company_id:
                 return jsonify({'success': False, 'message': 'Invalid product'}), 400
             

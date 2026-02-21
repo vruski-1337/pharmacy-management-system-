@@ -139,6 +139,13 @@ def dashboard():
         'total_customers': total_customers,
         'total_suppliers': total_suppliers,
     }
+
+    # Total stock value (using purchase price * quantity)
+    total_stock_value = db.session.query(func.sum(Product.quantity * Product.purchase_price)).filter(
+        Product.company_id == company_id
+    ).scalar() or 0
+
+    metrics['total_stock_value'] = float(total_stock_value)
     
     return render_template('dashboard/index.html', 
                          company=current_user.company,
