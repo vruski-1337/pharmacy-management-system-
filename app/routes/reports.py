@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, send_file
 from flask_login import login_required, current_user
-from app.models import db, Sale, Purchase, Product, Customer, Supplier, StockMovement, Expense
+from app.models import db, Sale, Purchase, Product, Customer, Supplier, StockMovement, Expense, SalesReturn, PurchaseReturn
 from datetime import datetime, timedelta
 from sqlalchemy import and_, func
 import csv
@@ -68,12 +68,96 @@ def sales_report():
     
     customers = Customer.query.filter_by(company_id=company_id, is_active=True).all()
     
-    return render_template('reports/sales.html',
+    return render_template('reports/sales_report.html',
                          sales=sales,
                          start_date=start_date,
                          end_date=end_date,
                          customers=customers,
                          customer_id=customer_id)
+
+
+@reports_bp.route('/sales-returns')
+@login_required
+def sales_returns_report():
+    """Sales returns report"""
+    company_id = current_user.company_id
+    
+    returns = db.session.query(SalesReturn).join(Sale).filter(
+        Sale.company_id == company_id
+    ).order_by(SalesReturn.return_date.desc()).all()
+    
+    return render_template('reports/sales_returns_report.html', returns=returns)
+
+
+@reports_bp.route('/purchase')
+@login_required
+def purchase_report():
+    """Purchase report"""
+    company_id = current_user.company_id
+    start_date = request.args.get('start_date', '')
+    end_date = request.args.get('end_date', '')
+    supplier_id = request.args.get('supplier_id', type=int)
+    export_format = request.args.get('export', '')
+    
+    query = Purchase.query.filter_by(company_id=company_id)
+    
+    if start_date and end_date:
+        start = datetime.strptime(start_date, '%Y-%m-%d')
+        end = datetime.strptime(end_date, '%Y-%m-%d')
+        query = query.filter(and_(Purchase.purchase_date >= start, Purchase.purchase_date <= end))
+    
+    if supplier_id:
+        query = query.filter_by(supplier_id=supplier_id)
+    
+    purchases = query.order_by(Purchase.purchase_date.desc()).all()
+    
+    # Export to CSV
+    if export_format == 'csv':
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['PO Number', 'Date', 'Supplier', 'Subtotal', 'Tax', 'Discount', 'Total', 'Status'])
+        
+        for purchase in purchases:
+            writer.writerow([
+                purchase.purchase_number,
+                purchase.purchase_date.strftime('%Y-%m-%d'),
+                purchase.supplier.supplier_name,
+                purchase.subtotal,
+                purchase.tax_amount,
+                purchase.discount_amount,
+                purchase.total_amount,
+                purchase.payment_status
+            ])
+        
+        output.seek(0)
+        return send_file(
+            io.BytesIO(output.getvalue().encode()),
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=f'purchase_report_{datetime.utcnow().strftime("%Y%m%d")}.csv'
+        )
+    
+    suppliers = Supplier.query.filter_by(company_id=company_id, is_active=True).all()
+    
+    return render_template('reports/purchase_report.html',
+                         purchases=purchases,
+                         start_date=start_date,
+                         end_date=end_date,
+                         suppliers=suppliers,
+                         supplier_id=supplier_id)
+
+
+@reports_bp.route('/purchase-returns')
+@login_required
+def purchase_returns_report():
+    """Purchase returns report"""
+    company_id = current_user.company_id
+    
+    returns = db.session.query(PurchaseReturn).join(Purchase).filter(
+        Purchase.company_id == company_id
+    ).order_by(PurchaseReturn.return_date.desc()).all()
+    
+    return render_template('reports/purchase_returns_report.html', returns=returns)
 
 
 @reports_bp.route('/purchases')

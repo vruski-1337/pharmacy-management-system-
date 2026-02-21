@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Sales Report - Pharmacy Management System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-chart-line"></i> Sales Report</h2>
+    <div>
+        <a href="{{ url_for('reports.sales_report') }}?export=csv" class="btn btn-success">
+            <i class="fas fa-download"></i> Export to CSV
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label for="start_date" class="form-label">From Date</label>
+                <input type="date" id="start_date" name="start_date" class="form-control" value="{{ start_date }}">
+            </div>
+            <div class="col-md-3">
+                <label for="end_date" class="form-label">To Date</label>
+                <input type="date" id="end_date" name="end_date" class="form-control" value="{{ end_date }}">
+            </div>
+            <div class="col-md-4">
+                <label for="customer_id" class="form-label">Customer</label>
+                <select id="customer_id" name="customer_id" class="form-select">
+                    <option value="">All Customers</option>
+                    {% for customer in customers %}
+                    <option value="{{ customer.id }}" {% if customer.id == customer_id %}selected{% endif %}>{{ customer.customer_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Invoice Number</th>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Subtotal</th>
+                    <th>Tax</th>
+                    <th>Discount</th>
+                    <th>Total</th>
+                    <th>Payment Method</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set total_subtotal = 0 %}
+                {% set total_tax = 0 %}
+                {% set total_discount = 0 %}
+                {% set total_sales = 0 %}
+                {% for sale in sales %}
+                    {% set total_subtotal = total_subtotal + sale.subtotal %}
+                    {% set total_tax = total_tax + sale.tax_amount %}
+                    {% set total_discount = total_discount + sale.discount_amount %}
+                    {% set total_sales = total_sales + sale.total_amount %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('sales.invoice_detail', sale_id=sale.id) }}" class="text-decoration-none">
+                                {{ sale.invoice_number }}
+                            </a>
+                        </td>
+                        <td>{{ sale.invoice_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ sale.customer_name or 'Walk-in' }}</td>
+                        <td>₹{{ "%.2f"|format(sale.subtotal) }}</td>
+                        <td>₹{{ "%.2f"|format(sale.tax_amount) }}</td>
+                        <td>₹{{ "%.2f"|format(sale.discount_amount) }}</td>
+                        <td><strong>₹{{ "%.2f"|format(sale.total_amount) }}</strong></td>
+                        <td>{{ sale.payment_method.upper() }}</td>
+                        <td>
+                            {% if sale.is_cancelled %}
+                                <span class="badge bg-danger">Cancelled</span>
+                            {% elif sale.payment_status == 'paid' %}
+                                <span class="badge bg-success">Paid</span>
+                            {% elif sale.payment_status == 'pending' %}
+                                <span class="badge bg-warning text-dark">Pending</span>
+                            {% else %}
+                                <span class="badge bg-info">Partial</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                {% if sales %}
+                    <tr class="table-light" style="font-weight: bold;">
+                        <td colspan="3">TOTAL</td>
+                        <td>₹{{ "%.2f"|format(total_subtotal) }}</td>
+                        <td>₹{{ "%.2f"|format(total_tax) }}</td>
+                        <td>₹{{ "%.2f"|format(total_discount) }}</td>
+                        <td>₹{{ "%.2f"|format(total_sales) }}</td>
+                        <td colspan="2"></td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            <i class="fas fa-inbox" style="font-size: 3rem; opacity: 0.3;"></i><br/>
+                            No sales found for the selected period
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

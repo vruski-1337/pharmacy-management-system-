@@ -388,3 +388,47 @@ def stock_movement_report():
                          products=products,
                          selected_product_id=product_id,
                          selected_type=movement_type)
+
+
+@inventory_bp.route('/products/<int:product_id>/adjust-stock', methods=['POST'])
+@login_required
+def adjust_stock(product_id):
+    """Adjust product stock"""
+    product = Product.query.get(product_id)
+    if not product or product.company_id != current_user.company_id:
+        flash('Product not found.', 'danger')
+        return redirect(url_for('inventory.products_list'))
+    
+    try:
+        adjustment_type = request.form.get('adjustment_type')
+        quantity = int(request.form.get('quantity'))
+        reason = request.form.get('reason')
+        
+        if adjustment_type == 'add':
+            product.quantity += quantity
+            movement_qty = quantity
+        else:
+            if product.quantity < quantity:
+                flash('Insufficient stock for removal.', 'danger')
+                return redirect(url_for('inventory.product_detail', product_id=product_id))
+            product.quantity -= quantity
+            movement_qty = -quantity
+        
+        product.updated_date = datetime.utcnow()
+        
+        # Record movement
+        movement = StockMovement(
+            product_id=product_id,
+            movement_type='adjustment',
+            quantity=movement_qty,
+            reason=reason
+        )
+        db.session.add(movement)
+        db.session.commit()
+        
+        flash('Stock adjusted successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Failed to adjust stock: {str(e)}', 'danger')
+    
+    return redirect(url_for('inventory.product_detail', product_id=product_id))
