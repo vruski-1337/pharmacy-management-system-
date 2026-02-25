@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
+from app.utils import require_roles
 from app.models import db, Supplier, Purchase
 from datetime import datetime
 from sqlalchemy import and_, func
@@ -77,13 +78,16 @@ def supplier_detail(supplier_id):
     # Get recent purchases
     purchases = Purchase.query.filter_by(supplier_id=supplier_id).order_by(
         Purchase.purchase_date.desc()).limit(20).all()
-    
-    # Calculate totals
-    total_purchased = db.session.query(func.sum(Purchase.total_amount)).filter_by(
-        supplier_id=supplier_id).scalar() or 0
-    pending_balance = db.session.query(func.sum(Purchase.total_amount)).filter(
-        and_(Purchase.supplier_id == supplier_id, Purchase.payment_status != 'paid')
-    ).scalar() or 0
+
+    # Calculate totals only for owner
+    total_purchased = None
+    pending_balance = None
+    if getattr(current_user, 'role', None) == 'owner':
+        total_purchased = db.session.query(func.sum(Purchase.total_amount)).filter_by(
+            supplier_id=supplier_id).scalar() or 0
+        pending_balance = db.session.query(func.sum(Purchase.total_amount)).filter(
+            and_(Purchase.supplier_id == supplier_id, Purchase.payment_status != 'paid')
+        ).scalar() or 0
     
     return render_template('suppliers/supplier_detail.html', 
                          supplier=supplier, 
@@ -151,6 +155,7 @@ def delete_supplier(supplier_id):
 
 @suppliers_bp.route('/ledger')
 @login_required
+@require_roles('owner')
 def supplier_ledger():
     """Supplier ledger report"""
     company_id = current_user.company_id

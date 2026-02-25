@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, send_file
 from flask_login import login_required, current_user
+from app.utils import require_roles
 from app.models import db, Sale, Purchase, Product, Customer, Supplier, StockMovement, Expense, SalesReturn, PurchaseReturn
 from datetime import datetime, timedelta
 from sqlalchemy import and_, func
@@ -38,7 +39,12 @@ def sales_report():
     if customer_id:
         query = query.filter_by(customer_id=customer_id)
     
-    sales = query.order_by(Sale.invoice_date.desc()).all()
+    # allow sorting by date via `sort` param: 'date_asc' or 'date_desc'
+    sort = request.args.get('sort', 'date_desc')
+    if sort == 'date_asc':
+        sales = query.order_by(Sale.invoice_date.asc()).all()
+    else:
+        sales = query.order_by(Sale.invoice_date.desc()).all()
     
     # Export to CSV
     if export_format == 'csv':
@@ -78,6 +84,7 @@ def sales_report():
 
 @reports_bp.route('/sales-returns')
 @login_required
+@require_roles('owner')
 def sales_returns_report():
     """Sales returns report"""
     company_id = current_user.company_id
@@ -91,6 +98,7 @@ def sales_returns_report():
 
 @reports_bp.route('/purchase')
 @login_required
+@require_roles('owner')
 def purchase_report():
     """Purchase report"""
     company_id = current_user.company_id
@@ -149,6 +157,7 @@ def purchase_report():
 
 @reports_bp.route('/purchase-returns')
 @login_required
+@require_roles('owner')
 def purchase_returns_report():
     """Purchase returns report"""
     company_id = current_user.company_id
@@ -162,6 +171,7 @@ def purchase_returns_report():
 
 @reports_bp.route('/purchases')
 @login_required
+@require_roles('owner')
 def purchases_report():
     """Purchase report"""
     company_id = current_user.company_id
@@ -327,6 +337,7 @@ def expiry_report():
 
 @reports_bp.route('/profit-loss')
 @login_required
+@require_roles('owner')
 def profit_loss_report():
     """Profit and Loss report"""
     company_id = current_user.company_id
@@ -388,6 +399,7 @@ def profit_loss_report():
 
 @reports_bp.route('/tax-summary')
 @login_required
+@require_roles('owner')
 def tax_summary():
     """Tax summary report"""
     company_id = current_user.company_id
@@ -423,6 +435,7 @@ def tax_summary():
 
 @reports_bp.route('/outstanding')
 @login_required
+@require_roles('owner')
 def outstanding_payments():
     """Outstanding payments report"""
     company_id = current_user.company_id

@@ -45,7 +45,9 @@ class User(UserMixin, db.Model):
     __tablename__ = 'user'
     
     id = db.Column(db.Integer, primary_key=True)
-    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False, unique=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    # Role: 'owner' or 'manager' (can extend later)
+    role = db.Column(db.String(20), default='manager')
     username = db.Column(db.String(255), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     is_active = db.Column(db.Boolean, default=True)

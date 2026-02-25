@@ -34,6 +34,7 @@ def create_app(config_name='development'):
     from app.routes.dashboard import dashboard_bp
     from app.routes.inventory import inventory_bp
     from app.routes.sales import sales_bp
+    from app.routes.users import users_bp
     from app.routes.purchases import purchases_bp
     from app.routes.customers import customers_bp
     from app.routes.suppliers import suppliers_bp
@@ -55,6 +56,7 @@ def create_app(config_name='development'):
     app.register_blueprint(reports_bp)
     app.register_blueprint(alerts_bp)
     app.register_blueprint(master_bp)
+    app.register_blueprint(users_bp)
     
     # Create database tables
     with app.app_context():

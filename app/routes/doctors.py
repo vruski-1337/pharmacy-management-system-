@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
+from app.utils import require_roles
 from app.models import db, Doctor
 from datetime import datetime
 
@@ -16,6 +17,7 @@ def doctors_list():
 
 @doctors_bp.route('/add', methods=['GET', 'POST'])
 @login_required
+@require_roles('owner', 'manager')
 def add_doctor():
     if request.method == 'POST':
         try:
@@ -39,6 +41,7 @@ def add_doctor():
 
 @doctors_bp.route('/<int:doctor_id>/edit', methods=['GET', 'POST'])
 @login_required
+@require_roles('owner', 'manager')
 def edit_doctor(doctor_id):
     doc = Doctor.query.get(doctor_id)
     if not doc or doc.company_id != current_user.company_id:
@@ -62,6 +65,7 @@ def edit_doctor(doctor_id):
 
 @doctors_bp.route('/<int:doctor_id>/delete', methods=['POST'])
 @login_required
+@require_roles('owner', 'manager')
 def delete_doctor(doctor_id):
     doc = Doctor.query.get(doctor_id)
     if not doc or doc.company_id != current_user.company_id:

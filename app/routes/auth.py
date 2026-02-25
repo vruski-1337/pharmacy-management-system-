@@ -101,11 +101,12 @@ def register():
             db.session.add(company)
             db.session.flush()  # Get the company ID
             
-            # Create user
+            # Create user (owner)
             user = User(
                 company_id=company.id,
                 username=request.form.get('username'),
-                is_active=True
+                is_active=True,
+                role='owner'
             )
             user.set_password(request.form.get('password'))
             db.session.add(user)
@@ -255,3 +256,8 @@ def change_password():
             return redirect(url_for('auth.change_password'))
     
     return render_template('change_password.html')
+
+
+@auth_bp.route('/access-denied')
+def access_denied():
+    return render_template('access_denied.html'), 403

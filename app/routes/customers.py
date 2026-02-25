@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
+from app.utils import require_roles
 from app.models import db, Customer, Sale
 from datetime import datetime
 from sqlalchemy import and_, func
@@ -84,7 +85,7 @@ def customer_detail(customer_id):
         flash('Customer not found.', 'danger')
         return redirect(url_for('customers.customers_list'))
     
-    # Get purchase history
+    # Get purchase history (sales visible to both owner and manager)
     sales = Sale.query.filter_by(customer_id=customer_id).order_by(Sale.invoice_date.desc()).limit(20).all()
     
     return render_template('customers/customer_detail.html', customer=customer, sales=sales)
@@ -124,6 +125,7 @@ def edit_customer(customer_id):
 
 @customers_bp.route('/<int:customer_id>/record-payment', methods=['POST'])
 @login_required
+@require_roles('owner')
 def record_payment(customer_id):
     """Record payment from customer"""
     customer = Customer.query.get(customer_id)
@@ -179,6 +181,7 @@ def delete_customer(customer_id):
 
 @customers_bp.route('/ledger')
 @login_required
+@require_roles('owner')
 def customer_ledger():
     """Customer ledger report"""
     company_id = current_user.company_id

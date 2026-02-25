@@ -6,6 +6,14 @@
 <h2 class="mb-4">Add New Product</h2>
 
 <form method="POST" enctype="multipart/form-data">
+    <div class="mb-3">
+        <label class="form-label">Bulk upload (CSV)</label>
+        <div class="input-group mb-2">
+            <input type="file" class="form-control" id="bulk_file" name="bulk_file" accept=".csv">
+            <a class="btn btn-outline-secondary" href="{{ url_for('inventory.download_products_template') }}">Download Template</a>
+        </div>
+        <small class="text-muted">You can download the template, fill product rows and upload as CSV. Required columns: product_name, sku, purchase_price, selling_price, mrp, quantity.</small>
+    </div>
     <div class="row">
         <div class="col-lg-8">
             <div class="card mb-3">

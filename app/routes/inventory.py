@@ -1,9 +1,11 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app.models import db, Product, StockMovement, Category, Unit
 from datetime import datetime
 import os
+import csv
+import io
 
 inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 
@@ -64,17 +66,89 @@ def products_list():
 @inventory_bp.route('/products/add', methods=['GET', 'POST'])
 @login_required
 def add_product():
+    # Only owners and managers can add products
+    if getattr(current_user, 'role', None) not in ('owner', 'manager'):
+        flash('You do not have permission to add products.', 'danger')
+        return redirect(url_for('inventory.products_list'))
     """Add new product"""
     if request.method == 'POST':
+        # Handle bulk CSV upload if provided
+        if 'bulk_file' in request.files and request.files['bulk_file'].filename:
+            file = request.files['bulk_file']
+            try:
+                stream = io.StringIO(file.stream.read().decode('utf-8'))
+            except Exception:
+                flash('Failed to read uploaded file. Please upload a UTF-8 CSV file.', 'danger')
+                return redirect(url_for('inventory.add_product'))
+
+            reader = csv.DictReader(stream)
+            required_cols = ['product_name','sku','purchase_price','selling_price','mrp','quantity']
+            missing = [c for c in required_cols if c not in reader.fieldnames]
+            if missing:
+                flash(f'Missing required columns in CSV: {", ".join(missing)}', 'danger')
+                return redirect(url_for('inventory.add_product'))
+
+            created = 0
+            errors = []
+            for i, row in enumerate(reader, start=2):
+                try:
+                    # enforce company scoping and simple validations
+                    sku = row.get('sku') or ''
+                    barcode = row.get('barcode') or None
+                    if sku and Product.query.filter_by(sku=sku, company_id=current_user.company_id).first():
+                        raise Exception(f'Duplicate SKU on row {i}: {sku}')
+                    if barcode and Product.query.filter_by(barcode=barcode, company_id=current_user.company_id).first():
+                        raise Exception(f'Duplicate barcode on row {i}: {barcode}')
+
+                    product = Product(
+                        company_id=current_user.company_id,
+                        product_name=row.get('product_name'),
+                        generic_name=row.get('generic_name'),
+                        brand=row.get('brand'),
+                        category=row.get('category') or '',
+                        manufacturer=row.get('manufacturer'),
+                        batch_number=row.get('batch_number'),
+                        barcode=barcode,
+                        sku=sku,
+                        purchase_price=float(row.get('purchase_price') or 0),
+                        selling_price=float(row.get('selling_price') or 0),
+                        mrp=float(row.get('mrp') or 0),
+                        tax_percentage=float(row.get('tax_percentage') or 0),
+                        quantity=int(float(row.get('quantity') or 0)),
+                        minimum_stock_level=int(float(row.get('minimum_stock_level') or 10)),
+                        reorder_level=int(float(row.get('reorder_level') or 20)),
+                        prescription_required=(row.get('prescription_required','').lower() in ('1','true','yes','on')),
+                        description=row.get('description')
+                    )
+                    db.session.add(product)
+                    created += 1
+                except Exception as e:
+                    errors.append(str(e))
+
+            try:
+                db.session.commit()
+                msg = f'Bulk upload completed: {created} products added.'
+                if errors:
+                    msg += f' {len(errors)} rows had errors (see logs).'
+                    flash(msg, 'warning')
+                else:
+                    flash(msg, 'success')
+                return redirect(url_for('inventory.products_list'))
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Failed to import products: {e}', 'danger')
+                return redirect(url_for('inventory.add_product'))
+
+        # Single product flow continues below
         try:
-            # Check unique SKU
-            if Product.query.filter_by(sku=request.form.get('sku')).first():
+            # Check unique SKU (scoped to company)
+            if Product.query.filter_by(sku=request.form.get('sku'), company_id=current_user.company_id).first():
                 flash('SKU already exists.', 'danger')
                 return redirect(url_for('inventory.add_product'))
             
             # Check unique barcode (if provided)
             barcode = request.form.get('barcode')
-            if barcode and Product.query.filter_by(barcode=barcode).first():
+            if barcode and Product.query.filter_by(barcode=barcode, company_id=current_user.company_id).first():
                 flash('Barcode already exists.', 'danger')
                 return redirect(url_for('inventory.add_product'))
             
@@ -151,6 +225,18 @@ def add_product():
     return render_template('inventory/add_product.html', categories=categories, units=units)
 
 
+@inventory_bp.route('/products/template')
+@login_required
+def download_products_template():
+    """Provide a CSV template for bulk product upload."""
+    headers = ['product_name','generic_name','brand','category','manufacturer','batch_number','sku','barcode','purchase_price','selling_price','mrp','tax_percentage','quantity','minimum_stock_level','reorder_level','manufacturing_date','expiry_date','prescription_required','description']
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(headers)
+    output.seek(0)
+    return send_file(io.BytesIO(output.getvalue().encode('utf-8')), mimetype='text/csv', as_attachment=True, download_name='products_template.csv')
+
+
 @inventory_bp.route('/products/<int:product_id>')
 @login_required
 def product_detail(product_id):
@@ -186,11 +272,16 @@ def edit_product(product_id):
         flash('Product not found.', 'danger')
         return redirect(url_for('inventory.products_list'))
     
+    # Only owners and managers can edit products
+    if getattr(current_user, 'role', None) not in ('owner', 'manager'):
+        flash('You do not have permission to edit products.', 'danger')
+        return redirect(url_for('inventory.product_detail', product_id=product_id))
+
     if request.method == 'POST':
         try:
             # Check unique barcode if changed
             barcode = request.form.get('barcode')
-            if barcode != product.barcode and Product.query.filter_by(barcode=barcode).first():
+            if barcode != product.barcode and Product.query.filter_by(barcode=barcode, company_id=current_user.company_id).first():
                 flash('Barcode already exists.', 'danger')
                 return redirect(url_for('inventory.edit_product', product_id=product_id))
             
@@ -319,6 +410,11 @@ def delete_product(product_id):
         flash('Product not found.', 'danger')
         return redirect(url_for('inventory.products_list'))
     
+    # Only owners and managers can delete products
+    if getattr(current_user, 'role', None) not in ('owner', 'manager'):
+        flash('You do not have permission to delete products.', 'danger')
+        return redirect(url_for('inventory.product_detail', product_id=product_id))
+
     try:
         product.is_active = False
         product.updated_date = datetime.utcnow()

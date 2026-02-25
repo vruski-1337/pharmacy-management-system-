@@ -274,6 +274,14 @@
             </a>
             
             <div class="nav-section-title">Management</div>
+            <a class="nav-link {% if 'doctors' in request.path %}active{% endif %}" href="{{ url_for('doctors.doctors_list') }}">
+                <i class="fas fa-user-md"></i> Doctors
+            </a>
+            {% if current_user.role == 'owner' %}
+            <a class="nav-link {% if 'users' in request.path %}active{% endif %}" href="{{ url_for('users.users_list') }}">
+                <i class="fas fa-user-cog"></i> User Management
+            </a>
+            {% endif %}
             <a class="nav-link {% if 'customers' in request.path %}active{% endif %}" href="{{ url_for('customers.customers_list') }}">
                 <i class="fas fa-users"></i> Customers
             </a>

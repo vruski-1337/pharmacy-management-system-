@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
+from app.utils import require_roles
 from app.models import db, Purchase, PurchaseItem, PurchaseReturn, Product, Supplier, StockMovement
 from datetime import datetime
 from sqlalchemy import and_
@@ -17,6 +18,7 @@ def generate_purchase_number():
 
 @purchases_bp.route('/')
 @login_required
+@require_roles('owner')
 def purchases_list():
     """List all purchases"""
     company_id = current_user.company_id
@@ -55,6 +57,7 @@ def purchases_list():
 
 @purchases_bp.route('/add', methods=['GET', 'POST'])
 @login_required
+@require_roles('owner')
 def add_purchase():
     """Add new purchase"""
     company_id = current_user.company_id
@@ -185,6 +188,7 @@ def add_purchase():
 
 @purchases_bp.route('/<int:purchase_id>')
 @login_required
+@require_roles('owner')
 def purchase_detail(purchase_id):
     """View purchase details"""
     purchase = Purchase.query.get(purchase_id)
@@ -197,6 +201,7 @@ def purchase_detail(purchase_id):
 
 @purchases_bp.route('/<int:purchase_id>/edit', methods=['GET', 'POST'])
 @login_required
+@require_roles('owner')
 def edit_purchase(purchase_id):
     """Edit purchase (only before completion)"""
     purchase = Purchase.query.get(purchase_id)
@@ -233,6 +238,7 @@ def edit_purchase(purchase_id):
 
 @purchases_bp.route('/<int:purchase_id>/record-payment', methods=['POST'])
 @login_required
+@require_roles('owner')
 def record_payment(purchase_id):
     """Record payment for purchase"""
     purchase = Purchase.query.get(purchase_id)
@@ -259,6 +265,7 @@ def record_payment(purchase_id):
 
 @purchases_bp.route('/returns')
 @login_required
+@require_roles('owner')
 def returns_list():
     """List all purchase returns"""
     company_id = current_user.company_id
@@ -271,6 +278,7 @@ def returns_list():
 
 @purchases_bp.route('/<int:purchase_id>/return', methods=['GET', 'POST'])
 @login_required
+@require_roles('owner')
 def process_return(purchase_id):
     """Process purchase return"""
     purchase = Purchase.query.get(purchase_id)
@@ -340,6 +348,7 @@ def process_return(purchase_id):
 
 @purchases_bp.route('/reports/by-date')
 @login_required
+@require_roles('owner')
 def report_by_date():
     """Purchase report by date"""
     company_id = current_user.company_id
@@ -363,6 +372,7 @@ def report_by_date():
 
 @purchases_bp.route('/reports/by-supplier')
 @login_required
+@require_roles('owner')
 def report_by_supplier():
     """Supplier-wise purchase report"""
     company_id = current_user.company_id
@@ -390,6 +400,7 @@ def report_by_supplier():
 
 @purchases_bp.route('/reports/pending-payments')
 @login_required
+@require_roles('owner')
 def report_pending_payments():
     """Pending payments report"""
     company_id = current_user.company_id

@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
+from app.utils import require_roles
 from werkzeug.utils import secure_filename
 from app.models import db, Expense, Sale, Purchase, Customer, Supplier, SalesReturn, PurchaseReturn
 from datetime import datetime
@@ -17,6 +18,7 @@ def allowed_file(filename):
 
 @accounting_bp.route('/')
 @login_required
+@require_roles('owner')
 def accounting_dashboard():
     """Accounting dashboard"""
     company_id = current_user.company_id
@@ -72,6 +74,7 @@ def accounting_dashboard():
 
 @accounting_bp.route('/expenses')
 @login_required
+@require_roles('owner')
 def expenses_list():
     """List all expenses"""
     company_id = current_user.company_id
@@ -107,6 +110,7 @@ def expenses_list():
 
 @accounting_bp.route('/expenses/add', methods=['GET', 'POST'])
 @login_required
+@require_roles('owner')
 def add_expense():
     """Add new expense"""
     if request.method == 'POST':
@@ -149,6 +153,7 @@ def add_expense():
 
 @accounting_bp.route('/expenses/<int:expense_id>/edit', methods=['GET', 'POST'])
 @login_required
+@require_roles('owner')
 def edit_expense(expense_id):
     """Edit expense"""
     expense = Expense.query.get(expense_id)
@@ -193,6 +198,7 @@ def edit_expense(expense_id):
 
 @accounting_bp.route('/expenses/<int:expense_id>/delete', methods=['POST'])
 @login_required
+@require_roles('owner')
 def delete_expense(expense_id):
     """Delete expense"""
     expense = Expense.query.get(expense_id)
@@ -221,6 +227,7 @@ def delete_expense(expense_id):
 
 @accounting_bp.route('/cash-summary')
 @login_required
+@require_roles('owner')
 def cash_summary():
     """Daily cash summary"""
     company_id = current_user.company_id
@@ -288,6 +295,7 @@ def sales_register():
 
 @accounting_bp.route('/purchase-register')
 @login_required
+@require_roles('owner')
 def purchase_register():
     """Purchase register"""
     company_id = current_user.company_id
