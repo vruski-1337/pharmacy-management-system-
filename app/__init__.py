@@ -9,11 +9,29 @@ def create_app(config_name='development'):
     """Application factory"""
     app = Flask(__name__)
     
+    # Create instance directory if possible (not at import time)
+    try:
+        instance_dir = app.config.from_object(config[config_name]) if False else None
+    except Exception:
+        instance_dir = None
+    
     # Load configuration
     app.config.from_object(config[config_name])
-    
-    # Ensure upload folder exists
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    # Ensure instance folder exists (if writable) and set config key
+    instance_dir = app.config.get('INSTANCE_DIR')
+    if instance_dir:
+        try:
+            os.makedirs(instance_dir, exist_ok=True)
+        except PermissionError:
+            # Running in an environment where the process cannot create the instance folder.
+            # Fall back to using the repo directory for DB (read-only scenario will still fail later).
+            print(f"Warning: cannot create instance dir {instance_dir}; continuing without creating it.")
+
+    # Ensure upload folder exists (may raise if not writable)
+    try:
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    except PermissionError:
+        print(f"Warning: cannot create upload folder {app.config.get('UPLOAD_FOLDER')}")
     
     # Initialize extensions
     db.init_app(app)

@@ -335,25 +335,80 @@
     <script>
         // Update alerts periodically
         {% if current_user.is_authenticated %}
-        function updateAlerts() {
-            fetch('{{ url_for("alerts.api_alert_count") }}')
-                .then(response => response.json())
-                .then(data => {
-                    const badge = document.getElementById('alert-badge');
-                    if (data.total > 0) {
-                        badge.textContent = data.total;
-                        badge.style.display = 'inline-block';
-                    } else {
-                        badge.style.display = 'none';
-                    }
-                });
-        }
-        
-        // Update alerts every 30 seconds
-        updateAlerts();
-        setInterval(updateAlerts, 30000);
-        {% endif %}
-    </script>
-    {% block extra_js %}{% endblock %}
-</body>
-</html>
+        <div class="sidebar">
+            <nav class="nav flex-column">
+            {% if current_user.company and current_user.company.company_name == 'Platform Admin' %}
+                <div class="nav-section-title">Admin</div>
+                <a class="nav-link {% if 'admin/companies' in request.path %}active{% endif %}" href="{{ url_for('admin.companies_list') }}">
+                    <i class="fas fa-building"></i> Companies
+                </a>
+                <a class="nav-link" href="{{ url_for('auth.profile') }}">
+                    <i class="fas fa-cog"></i> Settings
+                </a>
+            {% else %}
+                <div class="nav-section-title">Dashboard</div>
+                <a class="nav-link {% if request.endpoint == 'dashboard.dashboard' %}active{% endif %}" href="{{ url_for('dashboard.dashboard') }}">
+                    <i class="fas fa-chart-line"></i> Dashboard
+                </a>
+            
+                <div class="nav-section-title">Inventory</div>
+                <a class="nav-link {% if 'inventory' in request.path %}active{% endif %}" href="{{ url_for('inventory.products_list') }}">
+                    <i class="fas fa-boxes"></i> Products
+                </a>
+                <a class="nav-link {% if request.endpoint == 'inventory.low_stock_report' %}active{% endif %}" href="{{ url_for('inventory.low_stock_report') }}">
+                    <i class="fas fa-exclamation-triangle"></i> Low Stock
+                </a>
+                <a class="nav-link {% if request.endpoint == 'inventory.expiry_report' %}active{% endif %}" href="{{ url_for('inventory.expiry_report') }}">
+                    <i class="fas fa-hourglass-end"></i> Expiry
+                </a>
+            
+                <div class="nav-section-title">Sales & POS</div>
+                <a class="nav-link {% if request.endpoint == 'sales.pos' %}active{% endif %}" href="{{ url_for('sales.pos') }}">
+                    <i class="fas fa-cash-register"></i> POS
+                </a>
+                <a class="nav-link {% if 'invoices' in request.path %}active{% endif %}" href="{{ url_for('sales.invoices_list') }}">
+                    <i class="fas fa-receipt"></i> Invoices
+                </a>
+                <a class="nav-link {% if request.endpoint == 'sales.sales_returns_list' %}active{% endif %}" href="{{ url_for('sales.sales_returns_list') }}">
+                    <i class="fas fa-undo"></i> Sales Returns
+                </a>
+            
+                <div class="nav-section-title">Purchases</div>
+                <a class="nav-link {% if 'purchases' in request.path %}active{% endif %}" href="{{ url_for('purchases.purchases_list') }}">
+                    <i class="fas fa-shopping-cart"></i> Purchases
+                </a>
+            
+                <div class="nav-section-title">Management</div>
+                <a class="nav-link {% if 'doctors' in request.path %}active{% endif %}" href="{{ url_for('doctors.doctors_list') }}">
+                    <i class="fas fa-user-md"></i> Doctors
+                </a>
+                {% if current_user.role == 'owner' %}
+                <a class="nav-link {% if 'users' in request.path %}active{% endif %}" href="{{ url_for('users.users_list') }}">
+                    <i class="fas fa-user-cog"></i> User Management
+                </a>
+                {% endif %}
+                <a class="nav-link {% if 'customers' in request.path %}active{% endif %}" href="{{ url_for('customers.customers_list') }}">
+                    <i class="fas fa-users"></i> Customers
+                </a>
+                <a class="nav-link {% if 'suppliers' in request.path %}active{% endif %}" href="{{ url_for('suppliers.suppliers_list') }}">
+                    <i class="fas fa-truck"></i> Suppliers
+                </a>
+            
+                <div class="nav-section-title">Finance</div>
+                <a class="nav-link {% if 'accounting' in request.path %}active{% endif %}" href="{{ url_for('accounting.accounting_dashboard') }}">
+                    <i class="fas fa-calculator"></i> Accounting
+                </a>
+                <a class="nav-link {% if 'reports' in request.path %}active{% endif %}" href="{{ url_for('reports.reports_home') }}">
+                    <i class="fas fa-file-alt"></i> Reports
+                </a>
+            
+                <div class="nav-section-title">System</div>
+                <a class="nav-link {% if request.endpoint == 'alerts.alerts' %}active{% endif %}" href="{{ url_for('alerts.alerts') }}">
+                    <i class="fas fa-bell"></i> Alerts
+                </a>
+                <a class="nav-link" href="{{ url_for('auth.profile') }}">
+                    <i class="fas fa-cog"></i> Settings
+                </a>
+            {% endif %}
+            </nav>
+        </div>

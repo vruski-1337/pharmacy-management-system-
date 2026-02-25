@@ -11,7 +11,10 @@ Run: python scripts/migrate_user_table.py
 import sqlite3
 import os
 
-DB = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'pharmacy.db')
+import config
+
+# Respect instance DB location
+DB = os.environ.get('DATABASE_URL') or os.path.join(config.INSTANCE_DIR, 'pharmacy.db')
 
 def migrate():
     conn = sqlite3.connect(DB)

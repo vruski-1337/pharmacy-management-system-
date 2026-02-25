@@ -376,3 +376,18 @@ class Doctor(db.Model):
 
     company = db.relationship('Company')
     consultations = db.relationship('Sale', back_populates='doctor')
+
+
+class AdminLog(db.Model):
+    """Simple audit log for admin actions (credential changes, etc.)"""
+    __tablename__ = 'admin_log'
+
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'))
+    performed_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+    action = db.Column(db.String(100), nullable=False)
+    details = db.Column(db.Text)
+    created_date = db.Column(db.DateTime, default=datetime.utcnow)
+
+    company = db.relationship('Company')
+    performer = db.relationship('User')

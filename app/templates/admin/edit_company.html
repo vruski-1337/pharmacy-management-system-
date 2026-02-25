@@ -27,7 +27,25 @@
                 <button class="btn btn-primary" type="submit">Save</button>
                 <a class="btn btn-secondary" href="{{ url_for('admin.companies_list') }}">Cancel</a>
             </form>
+            </div>
         </div>
     </div>
+
+    {% if logs %}
+    <div class="card mt-3">
+        <div class="card-header">Recent Logs</div>
+        <div class="card-body">
+            <ul class="list-group">
+                {% for l in logs %}
+                <li class="list-group-item">
+                    <strong>{{ l.action }}</strong>
+                    <div class="text-muted small">{{ l.created_date.strftime('%Y-%m-%d %H:%M:%S') }} by {% if l.performer %}{{ l.performer.username }}{% else %}system{% endif %}</div>
+                    <div>{{ l.details }}</div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
