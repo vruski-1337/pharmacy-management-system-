@@ -126,11 +126,11 @@
                     <p class="text-muted">{{ product.manufacturing_date.strftime('%Y-%m-%d') }}</p>
                 </div>
                 {% endif %}
-                {% if product.expiry_date %}
+                {% if product.expiry_date_date %}
                 <div class="mb-2">
                     <label class="form-label text-muted">Expiry Date</label>
-                    <p class="fw-bold {% if product.expiry_date.date() < now %}text-danger{% else %}text-success{% endif %}">
-                        {{ product.expiry_date.strftime('%Y-%m-%d') }}
+                    <p class="fw-bold {% if product.expiry_date_date < now %}text-danger{% else %}text-success{% endif %}">
+                        {{ product.expiry_date_date.strftime('%Y-%m-%d') }}
                     </p>
                 </div>
                 {% endif %}
@@ -159,7 +159,7 @@
                 <tbody>
                     {% for movement in movements %}
                     <tr>
-                        <td>{{ movement.created_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ movement.created_date.strftime('%Y-%m-%d %H:%M') if movement.created_date else '' }}</td>
                         <td>
                             <span class="badge {% if movement.movement_type == 'sale' %}bg-danger{% elif movement.movement_type == 'purchase' %}bg-success{% elif movement.movement_type == 'return' %}bg-warning{% else %}bg-info{% endif %}">
                                 {{ movement.movement_type.capitalize() }}
@@ -183,7 +183,5 @@
     </a>
 </div>
 
-<script>
-const now = new Date();
-</script>
+ 
 {% endblock %}

@@ -42,27 +42,42 @@ def generate_alerts(company_id):
     expiry_60 = today + timedelta(days=60)
     expiry_90 = today + timedelta(days=90)
     
-    # 90 days expiry
+    # 90 days expiry (include already expired items)
     expiring_90 = Product.query.filter(
         and_(
             Product.company_id == company_id,
             Product.expiry_date.isnot(None),
-            Product.expiry_date >= today,
             Product.expiry_date <= expiry_90,
             Product.is_active == True
         )
     ).all()
     
     for product in expiring_90:
-        days_left = (product.expiry_date.date() - today).days
-        severity = 'critical' if days_left <= 7 else 'warning' if days_left <= 30 else 'info'
-        
+        try:
+            days_left = (product.expiry_date.date() - today).days
+        except Exception:
+            days_left = None
+
+        if days_left is None:
+            severity = 'info'
+            msg = f'{product.product_name} has an unknown expiry date.'
+            title = f'Expiry Notice: {product.product_name}'
+        else:
+            if days_left < 0:
+                severity = 'critical'
+                title = f'Expired: {product.product_name}'
+                msg = f'{product.product_name} expired {( -days_left )} days ago ({product.expiry_date.strftime("%Y-%m-%d")})'
+            else:
+                severity = 'critical' if days_left <= 7 else 'warning' if days_left <= 30 else 'info'
+                title = f'Expires Soon: {product.product_name}'
+                msg = f'{product.product_name} expires in {days_left} days ({product.expiry_date.strftime("%Y-%m-%d")})'
+
         alert = Alert(
             company_id=company_id,
             alert_type='expiry',
             product_id=product.id,
-            title=f'Expires Soon: {product.product_name}',
-            message=f'{product.product_name} expires in {days_left} days ({product.expiry_date.strftime("%Y-%m-%d")})',
+            title=title,
+            message=msg,
             severity=severity
         )
         db.session.add(alert)

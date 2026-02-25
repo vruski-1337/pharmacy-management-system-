@@ -27,7 +27,7 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <strong>Invoice Date:</strong><br>
-                            {{ sale.invoice_date.strftime('%Y-%m-%d %H:%M') }}
+                            {{ sale.invoice_date.strftime('%Y-%m-%d %H:%M') if sale.invoice_date else '' }}
                         </div>
                         <div class="col-md-6">
                             <strong>Customer:</strong><br>

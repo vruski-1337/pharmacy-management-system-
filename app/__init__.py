@@ -37,6 +37,7 @@ def create_app(config_name='development'):
     from app.routes.purchases import purchases_bp
     from app.routes.customers import customers_bp
     from app.routes.suppliers import suppliers_bp
+    from app.routes.doctors import doctors_bp
     from app.routes.accounting import accounting_bp
     from app.routes.reports import reports_bp
     from app.routes.alerts import alerts_bp
@@ -49,6 +50,7 @@ def create_app(config_name='development'):
     app.register_blueprint(purchases_bp)
     app.register_blueprint(customers_bp)
     app.register_blueprint(suppliers_bp)
+    app.register_blueprint(doctors_bp)
     app.register_blueprint(accounting_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(alerts_bp)

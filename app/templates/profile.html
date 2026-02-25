@@ -63,9 +63,8 @@
                 <div class="card-body">
                     <p><strong>Username:</strong><br>{{ current_user.username }}</p>
                     <p><strong>User Status:</strong><br><span class="badge bg-success">Active</span></p>
-                    <p><strong>Registered:</strong><br>{{ company.created_date.strftime('%Y-%m-%d %H:%M') }}</p>
-                    {% if current_user.last_login %}
-                    <p><strong>Last Login:</strong><br>{{ current_user.last_login.strftime('%Y-%m-%d %H:%M') }}</p>
+                        <p><strong>Registered:</strong><br>{{ company.created_date.strftime('%Y-%m-%d %H:%M') if company.created_date else '' }}</p>
+                        <p><strong>Last Login:</strong><br>{{ current_user.last_login.strftime('%Y-%m-%d %H:%M') if current_user.last_login else '' }}</p>
                     {% endif %}
                 </div>
             </div>

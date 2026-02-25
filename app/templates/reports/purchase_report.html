@@ -71,7 +71,7 @@
                                 {{ purchase.purchase_number }}
                             </a>
                         </td>
-                        <td>{{ purchase.purchase_date.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ purchase.purchase_date.strftime('%Y-%m-%d') if purchase.purchase_date else '' }}</td>
                         <td>{{ purchase.supplier.supplier_name }}</td>
                         <td>₹{{ "%.2f"|format(purchase.subtotal) }}</td>
                         <td>₹{{ "%.2f"|format(purchase.tax_amount) }}</td>

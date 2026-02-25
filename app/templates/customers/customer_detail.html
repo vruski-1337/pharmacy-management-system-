@@ -101,7 +101,7 @@
                             {% for sale in sales %}
                             <tr>
                                 <td><strong>{{ sale.invoice_number }}</strong></td>
-                                <td>{{ sale.invoice_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{{ sale.invoice_date.strftime('%Y-%m-%d %H:%M') if sale.invoice_date else '' }}</td>
                                 <td>₹{{ "%.2f"|format(sale.total_amount) }}</td>
                                 <td><span class="badge bg-info">{{ sale.payment_method.upper() }}</span></td>
                                 <td>

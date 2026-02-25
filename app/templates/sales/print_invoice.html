@@ -10,6 +10,7 @@
             padding: 0;
             background: white;
         }
+        @page { size: A5; margin: 10mm; }
         .no-print {
             display: none !important;
         }
@@ -143,7 +144,7 @@
 {% block content %}
 <div class="no-print print-buttons">
     <div class="container" style="margin-bottom: 20px;">
-        <button onclick="window.print()" class="btn btn-primary">
+        <button onclick="printInvoice()" class="btn btn-primary">
             <i class="fas fa-print"></i> Print Invoice
         </button>
         <a href="{{ url_for('sales.invoice_detail', sale_id=sale.id) }}" class="btn btn-secondary">
@@ -158,7 +159,7 @@
         <h1>{{ sale.company.company_name }}</h1>
         <div class="invoice-number">
             <strong>INVOICE #{{ sale.invoice_number }}</strong><br>
-            Date: {{ sale.invoice_date.strftime('%d-%m-%Y %H:%M') }}
+            Date: {{ sale.invoice_date.strftime('%d-%m-%Y %H:%M') if sale.invoice_date else '' }}
         </div>
     </div>
 
@@ -261,4 +262,33 @@
         </p>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function printInvoice() {
+    const content = document.querySelector('.invoice-container');
+    if (!content) {
+        window.print();
+        return;
+    }
+
+    const w = window.open('', '_blank', 'width=800,height=600');
+    const styles = `
+        <style>
+        @page { size: A5; margin: 10mm; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; color: #222; }
+        .invoice-container { padding: 10px; }
+        table { width:100%; border-collapse: collapse; }
+        .items-table th, .items-table td { padding: 6px; }
+        </style>`;
+
+    w.document.write('<!doctype html><html><head><title>Invoice</title>' + styles + '</head><body>');
+    w.document.write(content.innerHTML);
+    w.document.write('</body></html>');
+    w.document.close();
+    w.focus();
+    setTimeout(function(){ w.print(); w.close(); }, 300);
+}
+</script>
 {% endblock %}

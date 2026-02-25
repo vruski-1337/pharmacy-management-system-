@@ -62,6 +62,15 @@
                         {% endfor %}
                     </select>
                 </div>
+                <div class="mb-3">
+                    <label for="doctorSelect" class="form-label small"><strong>Consulting Doctor</strong></label>
+                    <select id="doctorSelect" class="form-select form-select-sm">
+                        <option value="">-- None --</option>
+                        {% for doctor in doctors %}
+                        <option value="{{ doctor.id }}">{{ doctor.name }}{% if doctor.clinic %} — {{ doctor.clinic }}{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
                 
                 <div class="mb-3">
                     <label for="customerName" class="form-label small"><strong>Name / Phone</strong></label>
@@ -405,6 +414,7 @@ async function checkout() {
         customer_id: document.getElementById('customerSelect').value || null,
         customer_name: document.getElementById('customerName').value || 'Walk-in',
         customer_phone: document.getElementById('customerPhone').value || '',
+        doctor_id: document.getElementById('doctorSelect').value || null,
         payment_method: document.getElementById('paymentMethod').value,
         discount: parseFloat(discountInput.value) || 0,
         include_tax: document.getElementById('includeTax').checked

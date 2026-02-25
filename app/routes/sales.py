@@ -28,7 +28,10 @@ def generate_invoice_number():
 def pos():
     """POS interface"""
     customers = Customer.query.filter_by(company_id=current_user.company_id, is_active=True).all()
-    return render_template('sales/pos.html', customers=customers)
+    # Provide doctors for selection at checkout
+    from app.models import Doctor
+    doctors = Doctor.query.filter_by(company_id=current_user.company_id).order_by(Doctor.name).all()
+    return render_template('sales/pos.html', customers=customers, doctors=doctors)
 
 
 @sales_bp.route('/api/products/search')
@@ -142,6 +145,7 @@ def checkout():
             invoice_date=datetime.utcnow(),
             customer_name=customer_name,
             customer_phone=customer_phone,
+            doctor_id=data.get('doctor_id'),
             subtotal=subtotal,
             tax_amount=total_tax,
             discount_amount=discount,
@@ -189,6 +193,13 @@ def checkout():
             customer = Customer.query.get(customer_id)
             if customer:
                 customer.current_balance += total_amount
+        # Associate consulting doctor if provided
+        try:
+            doc_id = data.get('doctor_id')
+            if doc_id:
+                sale.doctor_id = int(doc_id)
+        except Exception:
+            pass
         
         db.session.commit()
         

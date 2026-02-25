@@ -60,7 +60,7 @@
                     <tr>
                         <td><strong>{{ purchase.purchase_number }}</strong></td>
                         <td>{{ purchase.supplier.supplier_name }}</td>
-                        <td>{{ purchase.purchase_date.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ purchase.purchase_date.strftime('%Y-%m-%d') if purchase.purchase_date else '' }}</td>
                         <td>₹{{ "%.2f"|format(purchase.total_amount) }}</td>
                         <td>
                             {% if purchase.payment_status == 'paid' %}

@@ -30,7 +30,7 @@
                             {{ return.purchase.purchase_number }}
                         </a>
                     </td>
-                    <td>{{ return.return_date.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ return.return_date.strftime('%Y-%m-%d') if return.return_date else '' }}</td>
                     <td>
                         {% if return.product %}
                             {{ return.product.product_name }}

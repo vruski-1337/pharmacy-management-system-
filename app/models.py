@@ -221,6 +221,9 @@ class Sale(db.Model):
     customer = db.relationship('Customer', back_populates='sales')
     items = db.relationship('SaleItem', back_populates='sale', cascade='all, delete-orphan')
     returns = db.relationship('SalesReturn', back_populates='sale', cascade='all, delete-orphan')
+    # Optional consulting doctor for this sale
+    doctor_id = db.Column(db.Integer, db.ForeignKey('doctor.id'))
+    doctor = db.relationship('Doctor', back_populates='consultations')
 
 
 class SaleItem(db.Model):
@@ -355,3 +358,19 @@ class Alert(db.Model):
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
     
     company = db.relationship('Company', back_populates='alerts')
+
+
+class Doctor(db.Model):
+    """Consulting doctor model"""
+    __tablename__ = 'doctor'
+
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    phone = db.Column(db.String(50))
+    clinic = db.Column(db.String(255))
+    notes = db.Column(db.Text)
+    created_date = db.Column(db.DateTime, default=datetime.utcnow)
+
+    company = db.relationship('Company')
+    consultations = db.relationship('Sale', back_populates='doctor')

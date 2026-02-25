@@ -291,7 +291,6 @@ def expiry_report():
         and_(
             Product.company_id == company_id,
             Product.expiry_date.isnot(None),
-            Product.expiry_date >= today,
             Product.expiry_date <= expiry_date_limit,
             Product.is_active == True
         )
@@ -394,38 +393,35 @@ def tax_summary():
     company_id = current_user.company_id
     start_date = request.args.get('start_date', '')
     end_date = request.args.get('end_date', '')
-    
+
     query = Sale.query.filter(
         and_(Sale.company_id == company_id, Sale.is_cancelled == False)
     )
-    
+
     if start_date and end_date:
         start = datetime.strptime(start_date, '%Y-%m-%d')
         end = datetime.strptime(end_date, '%Y-%m-%d')
         query = query.filter(and_(Sale.invoice_date >= start, Sale.invoice_date <= end))
-    
-    sales = query.all()
-    
-    # Calculate tax by slab
+
+    sales = query.order_by(Sale.invoice_date.desc()).all()
+
+    # Calculate tax breakdown by tax percentage
     tax_breakdown = {}
     for sale in sales:
         for item in sale.items:
-            tax_rate = item.tax_percentage
-            if tax_rate not in tax_breakdown:
-                tax_breakdown[tax_rate] = {'items': 0, 'tax_amount': 0}
-            tax_breakdown[tax_rate]['items'] += 1
-            tax_breakdown[tax_rate]['tax_amount'] += item.tax_amount
-    
-    total_tax = sum(t['tax_amount'] for t in tax_breakdown.values())
-    
+            rate = item.tax_percentage or 0
+            if rate not in tax_breakdown:
+                tax_breakdown[rate] = {'items': 0, 'tax_amount': 0}
+            tax_breakdown[rate]['items'] += item.quantity
+            tax_breakdown[rate]['tax_amount'] += item.tax_amount or 0
+
     return render_template('reports/tax_summary.html',
-                         start_date=start_date,
-                         end_date=end_date,
                          tax_breakdown=tax_breakdown,
-                         total_tax=total_tax)
+                         start_date=start_date,
+                         end_date=end_date)
 
 
-@reports_bp.route('/outstanding-payments')
+@reports_bp.route('/outstanding')
 @login_required
 def outstanding_payments():
     """Outstanding payments report"""

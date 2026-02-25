@@ -31,7 +31,7 @@
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <label class="form-label text-muted">Purchase Date</label>
-                        <p>{{ purchase.purchase_date.strftime('%Y-%m-%d %H:%M') }}</p>
+                        <p>{{ purchase.purchase_date.strftime('%Y-%m-%d %H:%M') if purchase.purchase_date else '' }}</p>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label text-muted">Supplier Invoice</label>
@@ -65,7 +65,7 @@
                         <tr>
                             <td><strong>{{ item.product.product_name }}</strong></td>
                             <td>{{ item.batch_number }}</td>
-                            <td>{{ item.expiry_date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ item.expiry_date.strftime('%Y-%m-%d') if item.expiry_date else '' }}</td>
                             <td>{{ item.quantity }}</td>
                             <td>₹{{ "%.2f"|format(item.unit_price) }}</td>
                             <td>{{ item.tax_percentage }}%</td>
@@ -126,7 +126,7 @@
                 {% if purchase.payment_date %}
                 <div class="mb-3">
                     <label class="form-label text-muted">Payment Date</label>
-                    <p>{{ purchase.payment_date.strftime('%Y-%m-%d') }}</p>
+                    <p>{{ purchase.payment_date.strftime('%Y-%m-%d') if purchase.payment_date else '' }}</p>
                 </div>
                 {% endif %}
                 {% if purchase.payment_status != 'paid' %}

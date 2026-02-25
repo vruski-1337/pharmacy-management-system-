@@ -164,8 +164,17 @@ def product_detail(product_id):
     movements = StockMovement.query.filter_by(product_id=product_id).order_by(
         StockMovement.created_date.desc()
     ).limit(20).all()
-    
-    return render_template('inventory/product_detail.html', product=product, movements=movements)
+
+    # Normalize expiry_date for template comparisons (ensure a date object)
+    try:
+        if getattr(product, 'expiry_date', None):
+            product.expiry_date_date = product.expiry_date.date() if hasattr(product.expiry_date, 'date') else product.expiry_date
+        else:
+            product.expiry_date_date = None
+    except Exception:
+        product.expiry_date_date = None
+
+    return render_template('inventory/product_detail.html', product=product, movements=movements, now=datetime.utcnow().date())
 
 
 @inventory_bp.route('/products/<int:product_id>/edit', methods=['GET', 'POST'])
