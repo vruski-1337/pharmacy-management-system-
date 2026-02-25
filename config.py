@@ -6,7 +6,11 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 class Config:
     """Base configuration"""
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(basedir, 'pharmacy.db')
+    # Use an instance-level database file by default so code changes
+    # (which may overwrite repository files) don't erase data.
+    instance_dir = os.path.join(basedir, 'instance')
+    os.makedirs(instance_dir, exist_ok=True)
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///' + os.path.join(instance_dir, 'pharmacy.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
     

@@ -1,0 +1,14 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Instance folder for runtime data (database, uploads)
+/instance/
+pharmacy.db
+
+# Uploaded files
+/app/static/uploads/
+
+# Environment files
+.env
+.env.*
