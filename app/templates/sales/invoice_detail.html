@@ -15,9 +15,9 @@
                 <a href="{{ url_for('sales.print_invoice', sale_id=sale.id) }}" class="btn btn-outline-secondary" target="_blank">
                     <i class="fas fa-print"></i> Print
                 </a>
-                <a href="{{ url_for('sales.download_invoice_pdf', sale_id=sale.id) }}" class="btn btn-outline-info">
+                <button id="pdfBtn" class="btn btn-outline-info">
                     <i class="fas fa-download"></i> PDF
-                </a>
+                </button>
                 {% if not sale.is_cancelled %}
                 <a href="{{ url_for('sales.process_return', sale_id=sale.id) }}" class="btn btn-outline-warning">
                     <i class="fas fa-undo"></i> Return
@@ -26,6 +26,15 @@
                     <i class="fas fa-times"></i> Cancel
                 </button>
                 {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-12 text-end">
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" id="includeMerchantCopy" checked>
+                <label class="form-check-label" for="includeMerchantCopy">Include Merchant Copy</label>
             </div>
         </div>
     </div>
@@ -224,4 +233,15 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('pdfBtn').addEventListener('click', function(){
+    const include = document.getElementById('includeMerchantCopy').checked;
+    const param = include ? '1' : '0';
+    const url = "{{ url_for('sales.download_invoice_pdf', sale_id=sale.id) }}" + '?store_copy=' + param;
+    window.open(url, '_blank');
+});
+</script>
 {% endblock %}

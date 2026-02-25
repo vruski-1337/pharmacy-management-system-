@@ -304,6 +304,11 @@
             <a class="nav-link" href="{{ url_for('auth.profile') }}">
                 <i class="fas fa-cog"></i> Settings
             </a>
+            {% if current_user.role == 'owner' %}
+            <a class="nav-link" href="{{ url_for('admin.companies_list') }}">
+                <i class="fas fa-building"></i> Companies
+            </a>
+            {% endif %}
         </nav>
     </div>
     {% endif %}

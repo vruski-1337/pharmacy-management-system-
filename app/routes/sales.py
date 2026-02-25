@@ -272,15 +272,15 @@ def download_invoice_pdf(sale_id):
         return jsonify({'success': False, 'message': 'Invoice not found'}), 404
     
     try:
-        # Create PDF buffer
+        # Create PDF buffer (A4) and layout
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
-            buffer, 
-            pagesize=letter,
-            topMargin=0.5*inch, 
-            bottomMargin=0.5*inch,
-            leftMargin=0.75*inch, 
-            rightMargin=0.75*inch
+            buffer,
+            pagesize=A4,
+            topMargin=0.4*inch,
+            bottomMargin=0.4*inch,
+            leftMargin=0.5*inch,
+            rightMargin=0.5*inch
         )
         
         elements = []
@@ -318,34 +318,48 @@ def download_invoice_pdf(sale_id):
             borderPadding=4
         )
         
-        # Header with Logo and Company Info
+        # Helper to format company info and logo
         header_data = []
         company = sale.company
-        
-        # Add logo if exists
+        # Compose company contact/address
+        comp_lines = []
+        if getattr(company, 'address', None):
+            addr = company.address
+            parts = [addr]
+            if getattr(company, 'city', None):
+                parts.append(company.city)
+            if getattr(company, 'state', None):
+                parts.append(company.state)
+            if getattr(company, 'country', None):
+                parts.append(company.country)
+            if getattr(company, 'postal_code', None):
+                parts.append(company.postal_code)
+            comp_lines.append(', '.join([p for p in parts if p]))
+        if getattr(company, 'phone', None):
+            comp_lines.append(f"Phone: {company.phone}")
+        if getattr(company, 'email', None):
+            comp_lines.append(f"Email: {company.email}")
+
+        comp_info = '<br/>'.join(comp_lines)
+
+        # Resolve logo path relative to static folder if needed
         logo_path = company.logo_path
-        if logo_path and os.path.exists(logo_path):
+        logo_full = None
+        if logo_path:
+            candidate = os.path.join(os.getcwd(), 'app', 'static', logo_path)
+            if os.path.exists(candidate):
+                logo_full = candidate
+
+        if logo_full:
             try:
-                img = Image(logo_path, width=1.2*inch, height=1.2*inch)
-                header_data.append([img, Paragraph(f"<b>{company.company_name}</b><br/>" + 
-                                                   (f"{company.company_address}<br/>" if company.company_address else "") +
-                                                   (f"Phone: {company.company_phone}<br/>" if company.company_phone else "") +
-                                                   (f"Email: {company.company_email}" if company.company_email else ""),
-                                                   subtitle_style)])
+                img = Image(logo_full, width=1.0*inch, height=1.0*inch)
+                header_data.append([img, Paragraph(f"<b>{company.company_name}</b><br/>{comp_info}", subtitle_style)])
             except:
-                header_data.append([Paragraph(f"<b>{company.company_name}</b><br/>" + 
-                                             (f"{company.company_address}<br/>" if company.company_address else "") +
-                                             (f"Phone: {company.company_phone}<br/>" if company.company_phone else "") +
-                                             (f"Email: {company.company_email}" if company.company_email else ""),
-                                             subtitle_style)])
+                header_data.append([Paragraph(f"<b>{company.company_name}</b><br/>{comp_info}", subtitle_style)])
         else:
-            header_data.append([Paragraph(f"<b>{company.company_name}</b><br/>" + 
-                                         (f"{company.company_address}<br/>" if company.company_address else "") +
-                                         (f"Phone: {company.company_phone}<br/>" if company.company_phone else "") +
-                                         (f"Email: {company.company_email}" if company.company_email else ""),
-                                         subtitle_style)])
-        
-        header_table = Table(header_data, colWidths=[1.5*inch, 5.5*inch])
+            header_data.append([Paragraph(f"<b>{company.company_name}</b><br/>{comp_info}", subtitle_style)])
+
+        header_table = Table(header_data, colWidths=[1.2*inch, doc.width-1.2*inch])
         header_table.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('ALIGN', (0, 0), (0, -1), 'CENTER'),
@@ -375,8 +389,8 @@ def download_invoice_pdf(sale_id):
         bill_to = f"<b>Bill To:</b><br/>{sale.customer_name or 'Walk-in Customer'}"
         if sale.customer_phone:
             bill_to += f"<br/>Phone: {sale.customer_phone}"
-        if sale.customer and sale.customer.customer_address:
-            bill_to += f"<br/>{sale.customer.customer_address}"
+        if sale.customer and getattr(sale.customer, 'address', None):
+            bill_to += f"<br/>{sale.customer.address}"
         
         bill_ship_data = [
             [Paragraph(bill_to, styles['Normal']),
@@ -493,8 +507,48 @@ def download_invoice_pdf(sale_id):
             "Thank you for your business!<br/>This is a computer-generated invoice. No signature required.",
             footer_style
         ))
-        
-        # Build PDF
+
+        # Support store copy option: include both customer and merchant copies on same A4 page
+        include_store_copy = request.args.get('store_copy', '1') not in ('0', 'false', 'False')
+
+        # Build content for one invoice copy; we'll re-use by cloning elements fragments
+        # For simplicity, rebuild elements per copy to ensure separation
+        def build_invoice_copy(copy_label=None):
+            part = []
+            # header
+            part.append(header_table)
+            part.append(Spacer(1, 0.08*inch))
+            if copy_label:
+                part.append(Paragraph(f"<b>{copy_label}</b>", subtitle_style))
+                part.append(Spacer(1, 0.05*inch))
+
+            part.append(Paragraph(f"<b>INVOICE</b>", title_style))
+            part.append(Spacer(1, 0.05*inch))
+            part.append(invoice_info_table)
+            part.append(Spacer(1, 0.06*inch))
+            part.append(bill_ship_table)
+            part.append(Spacer(1, 0.06*inch))
+            part.append(items_table)
+            part.append(Spacer(1, 0.06*inch))
+            part.append(summary_table)
+            part.append(Spacer(1, 0.04*inch))
+            part.append(payment_table)
+            part.append(Spacer(1, 0.04*inch))
+            part.append(Paragraph(
+                "Thank you for your business!<br/>This is a computer-generated invoice. No signature required.",
+                footer_style
+            ))
+            return part
+
+        # Assemble page: customer copy on top
+        elements = build_invoice_copy('Customer Copy')
+        if include_store_copy:
+            # small separator line then store copy
+            elements.append(Spacer(1, 0.2*inch))
+            elements.append(Table([['']], colWidths=[doc.width], style=[('LINEABOVE', (0,0), (-1,0), 0.5, colors.HexColor('#cccccc'))]))
+            elements.append(Spacer(1, 0.1*inch))
+            elements.extend(build_invoice_copy('Merchant Copy'))
+
         doc.build(elements)
         buffer.seek(0)
         

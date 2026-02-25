@@ -65,7 +65,6 @@
                     <p><strong>User Status:</strong><br><span class="badge bg-success">Active</span></p>
                         <p><strong>Registered:</strong><br>{{ company.created_date.strftime('%Y-%m-%d %H:%M') if company.created_date else '' }}</p>
                         <p><strong>Last Login:</strong><br>{{ current_user.last_login.strftime('%Y-%m-%d %H:%M') if current_user.last_login else '' }}</p>
-                    {% endif %}
                 </div>
             </div>
         </div>

@@ -12,7 +12,10 @@
             <input type="file" class="form-control" id="bulk_file" name="bulk_file" accept=".csv">
             <a class="btn btn-outline-secondary" href="{{ url_for('inventory.download_products_template') }}">Download Template</a>
         </div>
-        <small class="text-muted">You can download the template, fill product rows and upload as CSV. Required columns: product_name, sku, purchase_price, selling_price, mrp, quantity.</small>
+        <div class="d-flex gap-2">
+            <button type="submit" name="upload_csv" value="1" class="btn btn-primary">Upload CSV</button>
+            <small class="text-muted align-self-center">You can download the template, fill product rows and upload as CSV. Required columns: product_name, sku, purchase_price, selling_price, mrp, quantity.</small>
+        </div>
     </div>
     <div class="row">
         <div class="col-lg-8">
