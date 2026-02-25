@@ -121,8 +121,12 @@ def add_expense():
                 if file and file.filename and allowed_file(file.filename):
                     filename = secure_filename(file.filename)
                     filename = f"{datetime.utcnow().timestamp()}_{filename}"
-                    upload_folder = '/workspaces/pharmacy-management-system-/app/static/uploads'
-                    os.makedirs(upload_folder, exist_ok=True)
+                    upload_folder = current_app.config.get('UPLOAD_FOLDER') or os.path.join(current_app.root_path, 'static', 'uploads')
+                    try:
+                        os.makedirs(upload_folder, exist_ok=True)
+                    except PermissionError:
+                        upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
+                        os.makedirs(upload_folder, exist_ok=True)
                     file.save(os.path.join(upload_folder, filename))
                     receipt_image = f"uploads/{filename}"
             
@@ -173,13 +177,21 @@ def edit_expense(expense_id):
                 if file and file.filename and allowed_file(file.filename):
                     # Delete old image
                     if expense.receipt_image:
-                        old_file = os.path.join('/workspaces/pharmacy-management-system-/app/static', expense.receipt_image)
+                        old_file = os.path.join(current_app.root_path, 'static', expense.receipt_image)
                         if os.path.exists(old_file):
-                            os.remove(old_file)
-                    
+                            try:
+                                os.remove(old_file)
+                            except PermissionError:
+                                pass
+
                     filename = secure_filename(file.filename)
                     filename = f"{datetime.utcnow().timestamp()}_{filename}"
-                    upload_folder = '/workspaces/pharmacy-management-system-/app/static/uploads'
+                    upload_folder = current_app.config.get('UPLOAD_FOLDER') or os.path.join(current_app.root_path, 'static', 'uploads')
+                    try:
+                        os.makedirs(upload_folder, exist_ok=True)
+                    except PermissionError:
+                        upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
+                        os.makedirs(upload_folder, exist_ok=True)
                     file.save(os.path.join(upload_folder, filename))
                     expense.receipt_image = f"uploads/{filename}"
             
@@ -209,9 +221,12 @@ def delete_expense(expense_id):
     try:
         # Delete receipt image if exists
         if expense.receipt_image:
-            old_file = os.path.join('/workspaces/pharmacy-management-system-/app/static', expense.receipt_image)
+            old_file = os.path.join(current_app.root_path, 'static', expense.receipt_image)
             if os.path.exists(old_file):
-                os.remove(old_file)
+                try:
+                    os.remove(old_file)
+                except PermissionError:
+                    pass
         
         db.session.delete(expense)
         db.session.commit()
